@@ -1,0 +1,167 @@
+import { createFileRoute } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid,
+} from "recharts";
+import { api, type CategorySummary, type MonthlySummary } from "@/lib/api";
+import { Layout } from "@/components/Layout";
+import { LoadingBlock, ErrorBlock } from "@/components/StateViews";
+import { useI18n } from "@/lib/i18n";
+
+export const Route = createFileRoute("/")({
+  component: DashboardPage,
+});
+
+const PALETTE = [
+  "var(--chart-1)", "var(--chart-2)", "var(--chart-3)",
+  "var(--chart-4)", "var(--chart-5)",
+];
+
+function formatCurrency(n: number, lang: "en" | "vi", currency: string = "VND") {
+  return new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "en-US", {
+    style: "currency",
+    currency: currency,
+    maximumFractionDigits: currency === "VND" ? 0 : 2
+  }).format(n);
+}
+
+function DashboardPage() {
+  const { t, lang } = useI18n();
+  const [selectedCurrency, setSelectedCurrency] = useState("VND");
+
+  const q = useQuery<CategorySummary[]>({
+    queryKey: ["summary"],
+    queryFn: api.summary,
+  });
+
+  const mQuery = useQuery<MonthlySummary[]>({
+    queryKey: ["monthlySummary"],
+    queryFn: api.monthlySummary,
+  });
+
+  const filteredData = (q.data ?? []).filter(c => c.currency === selectedCurrency);
+  const filteredMonthly = (mQuery.data ?? []).filter(c => c.currency === selectedCurrency);
+  const total = filteredData.reduce((s, c) => s + c.total_amount, 0);
+
+  return (
+    <Layout>
+      <section className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+        <div>
+          <div className="text-xs uppercase tracking-[0.2em] text-coral font-medium">
+            — {t("nav_dashboard")}
+          </div>
+          <h1 className="mt-3 font-display text-4xl sm:text-5xl text-foreground max-w-2xl">
+            {t("dashboard_title")}
+          </h1>
+          <p className="mt-3 text-muted-foreground max-w-xl">{t("dashboard_subtitle")}</p>
+        </div>
+        <select
+          value={selectedCurrency}
+          onChange={(e) => setSelectedCurrency(e.target.value)}
+          className="rounded-xl border border-input bg-background px-4 py-2 font-medium focus:outline-none focus:ring-2 focus:ring-ring self-start sm:self-end"
+        >
+          <option value="VND">VND</option>
+          <option value="USD">USD</option>
+        </select>
+      </section>
+
+      {q.isLoading || mQuery.isLoading ? (
+        <LoadingBlock />
+      ) : q.error || mQuery.error ? (
+        <ErrorBlock error={(q.error || mQuery.error) as Error} onRetry={() => { q.refetch(); mQuery.refetch(); }} />
+      ) : (!q.data || q.data.length === 0) && (!mQuery.data || mQuery.data.length === 0) ? (
+        <div className="rounded-2xl border border-border bg-card p-10 text-center text-muted-foreground">
+          {t("no_data")}
+        </div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-5">
+          <div className="lg:col-span-2 rounded-3xl border border-border bg-card p-6 flex flex-col">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground">
+              {t("total")}
+            </div>
+            <div className="mt-2 font-display text-4xl sm:text-5xl text-primary">
+              {formatCurrency(total, lang, selectedCurrency)}
+            </div>
+            <div className="mt-6 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={filteredData}
+                    dataKey="total_amount"
+                    nameKey="category"
+                    innerRadius={60}
+                    outerRadius={95}
+                    paddingAngle={2}
+                    stroke="var(--card)"
+                    strokeWidth={3}
+                  >
+                    {filteredData.map((_, i) => (
+                      <Cell key={i} fill={PALETTE[i % PALETTE.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }}
+                    formatter={(v: number) => formatCurrency(v, lang, selectedCurrency)}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <ul className="mt-4 space-y-2 text-sm">
+              {filteredData.map((c, i) => (
+                <li key={c.category} className="flex items-center justify-between">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PALETTE[i % PALETTE.length] }} />
+                    <span className="truncate">{c.category}</span>
+                  </span>
+                  <span className="text-muted-foreground">{formatCurrency(c.total_amount, lang, selectedCurrency)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="lg:col-span-3 rounded-3xl border border-border bg-card p-6">
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
+              {t("by_category")}
+            </div>
+            <div className="h-64 mb-10">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredData} margin={{ left: -10, right: 8, top: 8, bottom: 8 }}>
+                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="category" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    cursor={{ fill: "var(--muted)" }}
+                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }}
+                    formatter={(v: number) => formatCurrency(v, lang, selectedCurrency)}
+                  />
+                  <Bar dataKey="total_amount" radius={[10, 10, 0, 0]} fill="var(--primary)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4 mt-8 pt-8 border-t border-border">
+              {t("monthly_trend")}
+            </div>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredMonthly} margin={{ left: -10, right: 8, top: 8, bottom: 8 }}>
+                  <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    cursor={{ fill: "var(--muted)" }}
+                    contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }}
+                    formatter={(v: number) => formatCurrency(v, lang, selectedCurrency)}
+                  />
+                  <Bar dataKey="total_amount" radius={[10, 10, 0, 0]} fill="var(--chart-3)" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+      )}
+    </Layout>
+  );
+}
