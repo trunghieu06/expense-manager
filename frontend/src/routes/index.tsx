@@ -139,7 +139,7 @@ function DashboardPage() {
         </div>
       ) : (
         <div className="grid gap-6 lg:grid-cols-5">
-          <div className="lg:col-span-2 rounded-3xl border border-border bg-card p-6 flex flex-col">
+          <div className="lg:col-span-2 rounded-3xl border border-border bg-card p-6 flex flex-col min-w-0 overflow-hidden">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">
               {t("total")}
             </div>
@@ -183,7 +183,7 @@ function DashboardPage() {
             </ul>
           </div>
 
-          <div className="lg:col-span-3 rounded-3xl border border-border bg-card p-6">
+          <div className="lg:col-span-3 rounded-3xl border border-border bg-card p-6 min-w-0 overflow-hidden">
             <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
               {t("by_category")}
             </div>
@@ -224,7 +224,7 @@ function DashboardPage() {
           </div>
           
           {/* Hourly Trend Section */}
-          <div className="lg:col-span-5 rounded-3xl border border-border bg-card p-6 mt-2">
+          <div className="lg:col-span-5 rounded-3xl border border-border bg-card p-6 mt-2 min-w-0 overflow-hidden">
             <div className="flex items-center justify-between mb-4">
               <div className="text-xs uppercase tracking-wider text-muted-foreground">
                 Xu hướng theo giờ (Vuốt để xem)
