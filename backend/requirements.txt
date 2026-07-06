@@ -9,11 +9,8 @@ pytesseract
 pytest
 httpx
 openai
-passlib[bcrypt]
+bcrypt
 python-jose[cryptography]
 psycopg2-binary
-passlib[bcrypt]
-python-jose[cryptography]
-psycopg2-binary
-python-multipart
 email-validator
+python-dotenv
