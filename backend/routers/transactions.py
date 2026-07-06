@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from typing import List
 
-from database import get_db
+from database import get_db, engine
 from models.transaction import Transaction
 from models.user import User
 from schemas.transaction import TransactionCreate, TransactionResponse, CategorySummary, TransactionUpdate, MonthlySummary, BulkDeleteRequest, SmartEntryRequest
@@ -100,11 +100,13 @@ def get_transactions_summary(db: Session = Depends(get_db), current_user: User =
 @router.get("/monthly-summary", response_model=List[MonthlySummary])
 def get_monthly_summary(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
+        month_col = func.to_char(Transaction.created_at, 'YYYY-MM').label("month") if engine.name == 'postgresql' else func.strftime('%Y-%m', Transaction.created_at).label("month")
+        
         summary = db.query(
-            func.strftime('%Y-%m', Transaction.created_at).label("month"),
+            month_col,
             Transaction.currency,
             func.sum(Transaction.amount).label("total_amount")
-        ).filter(Transaction.user_id == current_user.id).group_by("month", Transaction.currency).all()
+        ).filter(Transaction.user_id == current_user.id).group_by(month_col, Transaction.currency).all()
         
         return [{"month": item.month, "currency": item.currency, "total_amount": item.total_amount} for item in summary]
     except Exception as e:
@@ -113,9 +115,10 @@ def get_monthly_summary(db: Session = Depends(get_db), current_user: User = Depe
 @router.get("/daily-summary")
 def get_daily_summary(date: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     try:
+        date_cond = func.to_char(Transaction.created_at, 'YYYY-MM-DD') == date if engine.name == 'postgresql' else func.date(Transaction.created_at) == date
         transactions = db.query(Transaction).filter(
             Transaction.user_id == current_user.id,
-            func.date(Transaction.created_at) == date
+            date_cond
         ).all()
         
         tx_list = [
