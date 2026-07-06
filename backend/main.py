@@ -32,4 +32,3 @@ app.include_router(auth.router)
 @app.get("/")
 def root():
     return {"message": "Chào mừng đến với Smart Expense Manager API. Truy cập /docs để xem API docs."}
-git 
