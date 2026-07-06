@@ -51,6 +51,9 @@ const dict = {
     camera_error: "Cannot access camera. Please allow permissions.",
     use_upload: "Use upload instead",
     open_camera: "Open Camera",
+    smart_entry_placeholder: "Type natural language (e.g., Coffee 50k)",
+    smart_entry_button: "Analyze with AI",
+    analyzing: "Analyzing...",
   },
   vi: {
     appName: "S\u1ed5 Chi",
@@ -100,6 +103,9 @@ const dict = {
     camera_error: "Không thể truy cập camera. Vui lòng cấp quyền.",
     use_upload: "Dùng tính năng tải lên",
     open_camera: "Mở Camera",
+    smart_entry_placeholder: "Nhập chi tiêu bằng lời nói (VD: Uống trà sữa 35k)...",
+    smart_entry_button: "Phân tích bằng AI",
+    analyzing: "Đang phân tích...",
   },
 } as const;
 

@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import useEmblaCarousel from "embla-carousel-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
 } from "recharts";
-import { api, type CategorySummary, type MonthlySummary } from "@/lib/api";
+import { api, type CategorySummary, type MonthlySummary, type TransactionResponse } from "@/lib/api";
 import { Layout } from "@/components/Layout";
 import { LoadingBlock, ErrorBlock } from "@/components/StateViews";
 import { useI18n } from "@/lib/i18n";
@@ -41,9 +43,69 @@ function DashboardPage() {
     queryFn: api.monthlySummary,
   });
 
+  const txQuery = useQuery<TransactionResponse[]>({
+    queryKey: ["transactions"],
+    queryFn: api.listTransactions,
+  });
+
   const filteredData = (q.data ?? []).filter(c => c.currency === selectedCurrency);
   const filteredMonthly = (mQuery.data ?? []).filter(c => c.currency === selectedCurrency);
   const total = filteredData.reduce((s, c) => s + c.total_amount, 0);
+
+  // Xử lý dữ liệu biểu đồ theo giờ
+  const dailyHourlyData = useMemo(() => {
+    if (!txQuery.data) return [];
+    
+    const groups: Record<string, TransactionResponse[]> = {};
+    for (const tx of txQuery.data) {
+      if (tx.currency !== selectedCurrency) continue;
+      
+      const d = new Date(tx.created_at);
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      if (!groups[dateStr]) groups[dateStr] = [];
+      groups[dateStr].push(tx);
+    }
+    
+    const sortedDates = Object.keys(groups).sort((a, b) => b.localeCompare(a)).slice(0, 14);
+    
+    return sortedDates.map(dateStr => {
+      const hourly = Array.from({ length: 24 }, (_, i) => ({
+        hour: `${String(i).padStart(2, '0')}:00`,
+        amount: 0
+      }));
+      
+      for (const tx of groups[dateStr]) {
+        const d = new Date(tx.created_at);
+        hourly[d.getHours()].amount += tx.amount;
+      }
+      
+      return {
+        dateStr,
+        hourly,
+        total: hourly.reduce((sum, h) => sum + h.amount, 0)
+      };
+    });
+  }, [txQuery.data, selectedCurrency]);
+
+  const [emblaRef, emblaApi] = useEmblaCarousel({ loop: false, align: 'start' });
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+
+  const scrollPrev = useCallback(() => emblaApi && emblaApi.scrollPrev(), [emblaApi]);
+  const scrollNext = useCallback(() => emblaApi && emblaApi.scrollNext(), [emblaApi]);
+
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setCanScrollPrev(emblaApi.canScrollPrev());
+    setCanScrollNext(emblaApi.canScrollNext());
+  }, [emblaApi]);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+  }, [emblaApi, onSelect]);
 
   return (
     <Layout>
@@ -159,6 +221,79 @@ function DashboardPage() {
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+          
+          {/* Hourly Trend Section */}
+          <div className="lg:col-span-5 rounded-3xl border border-border bg-card p-6 mt-2">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                Xu hướng theo giờ (Vuốt để xem)
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={scrollPrev} 
+                  disabled={!canScrollPrev}
+                  className="p-1 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-30 transition-colors"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <button 
+                  onClick={scrollNext} 
+                  disabled={!canScrollNext}
+                  className="p-1 rounded-full bg-secondary text-secondary-foreground hover:bg-secondary/80 disabled:opacity-30 transition-colors"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+            
+            {dailyHourlyData.length === 0 ? (
+              <div className="text-center py-10 text-muted-foreground">Không có dữ liệu chi tiêu.</div>
+            ) : (
+              <div className="overflow-hidden" ref={emblaRef}>
+                <div className="flex gap-4">
+                  {dailyHourlyData.map((dayData) => (
+                    <div key={dayData.dateStr} className="flex-[0_0_100%] sm:flex-[0_0_80%] lg:flex-[0_0_50%] min-w-0 border border-border/50 rounded-2xl p-4 bg-background">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="font-semibold text-primary">
+                          {new Date(dayData.dateStr).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-US", { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </span>
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {formatCurrency(dayData.total, lang, selectedCurrency)}
+                        </span>
+                      </div>
+                      <div className="h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={dayData.hourly} margin={{ left: -20, right: 0, top: 0, bottom: 0 }}>
+                            <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                            <XAxis 
+                              dataKey="hour" 
+                              tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              interval={3}
+                            />
+                            <YAxis 
+                              tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} 
+                              axisLine={false} 
+                              tickLine={false} 
+                              tickFormatter={(v) => v >= 1000 ? `${v/1000}k` : v}
+                            />
+                            <Tooltip
+                              cursor={{ fill: "var(--muted)" }}
+                              contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12, fontSize: 12 }}
+                              formatter={(v: number) => formatCurrency(v, lang, selectedCurrency)}
+                              labelFormatter={(label) => `Giờ: ${label}`}
+                            />
+                            <Bar dataKey="amount" radius={[4, 4, 0, 0]} fill="var(--chart-4)" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

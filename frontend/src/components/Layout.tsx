@@ -1,11 +1,18 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, Navigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useI18n, type Lang } from "@/lib/i18n";
-import { LayoutDashboard, PlusCircle, ScanLine, History } from "lucide-react";
+import { LayoutDashboard, PlusCircle, ScanLine, History, LogOut } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { t, lang, setLang } = useI18n();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const { isAuthenticated, logout } = useAuth();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
 
   const nav = [
     { to: "/", label: t("nav_dashboard"), icon: LayoutDashboard },
@@ -27,7 +34,16 @@ export function Layout({ children }: { children: ReactNode }) {
               <div className="text-xs text-muted-foreground truncate">{t("tagline")}</div>
             </div>
           </Link>
-          <LangSwitch lang={lang} setLang={setLang} />
+          <div className="flex items-center gap-2">
+            <LangSwitch lang={lang} setLang={setLang} />
+            <button 
+              onClick={logout}
+              className="p-2 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              title="Đăng xuất"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
         </div>
         <nav className="mx-auto max-w-6xl px-3 pb-2 flex gap-1 overflow-x-auto">
           {nav.map((n) => {

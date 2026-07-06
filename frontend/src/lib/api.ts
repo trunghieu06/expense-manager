@@ -2,11 +2,27 @@ export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ||
   "";
 
+// Lấy token từ localStorage an toàn cho SSR
+export const getToken = () => typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+export const setToken = (token: string) => typeof window !== "undefined" && localStorage.setItem("access_token", token);
+export const removeToken = () => typeof window !== "undefined" && localStorage.removeItem("access_token");
+
+// Hàm fetch có gán Bearer Token
+async function fetchWithAuth(url: string, options: RequestInit = {}) {
+  const token = getToken();
+  const headers = new Headers(options.headers);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  return fetch(url, { ...options, headers });
+}
+
 export interface TransactionCreate {
   amount: number;
   currency: string;
   category: string;
   note?: string | null;
+  created_at?: string;
 }
 
 export interface TransactionUpdate {
@@ -14,6 +30,7 @@ export interface TransactionUpdate {
   currency?: string;
   category?: string;
   note?: string | null;
+  created_at?: string;
 }
 
 export interface TransactionResponse {
@@ -39,6 +56,10 @@ export interface MonthlySummary {
 
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
+    if (res.status === 401) {
+      removeToken();
+      window.dispatchEvent(new Event("auth-expired"));
+    }
     let detail = res.statusText;
     try {
       const j = await res.json();
@@ -50,47 +71,72 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export const api = {
+  // --- AUTH ---
+  login: (data: FormData) => 
+    fetch(`${API_BASE_URL}/api/v1/auth/login`, {
+      method: "POST",
+      body: data,
+    }).then(handle<{ access_token: string; token_type: string }>),
+
+  register: (data: any) =>
+    fetch(`${API_BASE_URL}/api/v1/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    }).then(handle<any>),
+
+  // --- TRANSACTIONS ---
   addManual: (data: TransactionCreate) =>
-    fetch(`${API_BASE_URL}/api/v1/transactions/manual`, {
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/manual`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }).then(handle<TransactionResponse>),
 
+  smartEntry: (text: string) =>
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/smart-entry`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    }).then(handle<Partial<TransactionCreate>>),
+
   scanInvoice: (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    return fetch(`${API_BASE_URL}/api/v1/transactions/scan-invoice`, {
+    return fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/scan-invoice`, {
       method: "POST",
       body: fd,
     }).then(handle<TransactionResponse>);
   },
 
   listTransactions: () =>
-    fetch(`${API_BASE_URL}/api/v1/transactions`).then(handle<TransactionResponse[]>),
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions`).then(handle<TransactionResponse[]>),
 
   updateTransaction: (id: number, data: TransactionUpdate) =>
-    fetch(`${API_BASE_URL}/api/v1/transactions/${id}`, {
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     }).then(handle<TransactionResponse>),
 
   deleteTransaction: (id: number) =>
-    fetch(`${API_BASE_URL}/api/v1/transactions/${id}`, {
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/${id}`, {
       method: "DELETE",
     }).then(handle<{ detail: string }>),
 
   bulkDelete: (ids: number[]) =>
-    fetch(`${API_BASE_URL}/api/v1/transactions/bulk-delete`, {
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/bulk-delete`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids }),
     }).then(handle<{ detail: string }>),
 
   summary: () =>
-    fetch(`${API_BASE_URL}/api/v1/transactions/summary`).then(handle<CategorySummary[]>),
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/summary`).then(handle<CategorySummary[]>),
 
   monthlySummary: () =>
-    fetch(`${API_BASE_URL}/api/v1/transactions/monthly-summary`).then(handle<MonthlySummary[]>),
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/monthly-summary`).then(handle<MonthlySummary[]>),
+
+  dailySummary: (date: string) =>
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/daily-summary?date=${date}`).then(handle<{ summary: string }>),
 };

@@ -1,8 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from database import engine, Base
-from routers import transactions
+from routers import transactions, auth
 from models import user, transaction
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Khởi tạo bảng trong database (nếu chưa có)
 Base.metadata.create_all(bind=engine)
@@ -24,6 +27,7 @@ app.add_middleware(
 
 # Đăng ký router
 app.include_router(transactions.router)
+app.include_router(auth.router)
 
 @app.get("/")
 def root():

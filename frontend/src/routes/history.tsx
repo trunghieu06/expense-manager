@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { api, type TransactionResponse } from "@/lib/api";
 import { Layout } from "@/components/Layout";
 import { LoadingBlock, ErrorBlock } from "@/components/StateViews";
 import { useI18n } from "@/lib/i18n";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2, X, Sparkles, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/history")({
   component: HistoryPage,
@@ -15,8 +15,10 @@ function HistoryPage() {
   const { t, lang } = useI18n();
   const qc = useQueryClient();
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editForm, setEditForm] = useState<{ amount: string; category: string; currency: string }>({ amount: "", category: "", currency: "" });
+  const [editForm, setEditForm] = useState<{ amount: string; category: string; currency: string; created_at: string }>({ amount: "", category: "", currency: "", created_at: "" });
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [summaries, setSummaries] = useState<Record<string, string>>({});
+  const [loadingSummaries, setLoadingSummaries] = useState<Record<string, boolean>>({});
 
   const q = useQuery<TransactionResponse[]>({
     queryKey: ["transactions"],
@@ -25,7 +27,7 @@ function HistoryPage() {
 
   const del = useMutation({
     mutationFn: (id: number) => api.deleteTransaction(id),
-    onSuccess: () => {
+    onSuccess: (_, id) => {
       setSelectedIds(prev => prev.filter(selected => selected !== id));
       qc.invalidateQueries({ queryKey: ["transactions"] });
       qc.invalidateQueries({ queryKey: ["summary"] });
@@ -63,7 +65,16 @@ function HistoryPage() {
 
   const startEdit = (tx: TransactionResponse) => {
     setEditingId(tx.id);
-    setEditForm({ amount: tx.amount.toString(), category: tx.category, currency: tx.currency });
+    const dateObj = new Date(tx.created_at);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const localDateTime = `${dateObj.getFullYear()}-${pad(dateObj.getMonth() + 1)}-${pad(dateObj.getDate())}T${pad(dateObj.getHours())}:${pad(dateObj.getMinutes())}`;
+    
+    setEditForm({ 
+      amount: tx.amount.toString(), 
+      category: tx.category, 
+      currency: tx.currency,
+      created_at: localDateTime
+    });
   };
 
   const saveEdit = (id: number) => {
@@ -73,6 +84,7 @@ function HistoryPage() {
         amount: parseFloat(editForm.amount),
         category: editForm.category,
         currency: editForm.currency,
+        created_at: editForm.created_at ? editForm.created_at : undefined,
       },
     });
   };
@@ -91,6 +103,39 @@ function HistoryPage() {
     setSelectedIds(prev => 
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
+  };
+
+  const groupedData = useMemo(() => {
+    if (!q.data) return {};
+    // Group by YYYY-MM-DD
+    const groups = q.data.reduce((acc, tx) => {
+      // Create local date string safely
+      const date = new Date(tx.created_at);
+      const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+      if (!acc[dateStr]) acc[dateStr] = [];
+      acc[dateStr].push(tx);
+      return acc;
+    }, {} as Record<string, TransactionResponse[]>);
+    
+    // Sort keys descending
+    const sortedKeys = Object.keys(groups).sort((a, b) => b.localeCompare(a));
+    const sortedGroups: Record<string, TransactionResponse[]> = {};
+    for (const key of sortedKeys) {
+      sortedGroups[key] = groups[key];
+    }
+    return sortedGroups;
+  }, [q.data]);
+
+  const fetchSummary = async (dateStr: string) => {
+    setLoadingSummaries(prev => ({ ...prev, [dateStr]: true }));
+    try {
+      const res = await api.dailySummary(dateStr);
+      setSummaries(prev => ({ ...prev, [dateStr]: res.summary }));
+    } catch (err) {
+      alert("Error generating summary.");
+    } finally {
+      setLoadingSummaries(prev => ({ ...prev, [dateStr]: false }));
+    }
   };
 
   return (
@@ -128,9 +173,35 @@ function HistoryPage() {
           {t("no_data")}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-3xl border border-border bg-card">
-          <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="border-b border-border bg-secondary/50">
+        <div className="space-y-8">
+          {Object.entries(groupedData).map(([dateStr, txs]) => (
+            <div key={dateStr} className="overflow-x-auto rounded-3xl border border-border bg-card">
+              {/* Header cho mỗi ngày */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border-b border-border bg-secondary/20 gap-4">
+                <div className="font-semibold text-lg">
+                  {new Date(dateStr).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-US", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </div>
+                
+                <button
+                  onClick={() => fetchSummary(dateStr)}
+                  disabled={loadingSummaries[dateStr]}
+                  className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition-colors"
+                >
+                  {loadingSummaries[dateStr] ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {lang === 'vi' ? "AI Kể chuyện" : "AI Insight"}
+                </button>
+              </div>
+
+              {/* Hiển thị tóm tắt AI nếu có */}
+              {summaries[dateStr] && (
+                <div className="p-4 bg-primary/5 text-sm leading-relaxed border-b border-border">
+                  <span className="font-bold text-primary mr-2">✨ AI:</span>
+                  {summaries[dateStr]}
+                </div>
+              )}
+
+              <table className="w-full text-left text-sm whitespace-nowrap">
+                <thead className="border-b border-border bg-secondary/50">
               <tr>
                 <th className="px-6 py-4 w-10">
                   <input 
@@ -148,7 +219,7 @@ function HistoryPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {q.data.map((tx) => (
+              {txs.map((tx) => (
                 <tr key={tx.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="px-6 py-4">
                     <input 
@@ -159,7 +230,16 @@ function HistoryPage() {
                     />
                   </td>
                   <td className="px-6 py-4 text-muted-foreground">
-                    {new Date(tx.created_at).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-US")}
+                    {editingId === tx.id ? (
+                      <input 
+                        type="datetime-local" 
+                        value={editForm.created_at}
+                        onChange={(e) => setEditForm({...editForm, created_at: e.target.value})}
+                        className="rounded border border-input px-2 py-1 bg-background text-foreground"
+                      />
+                    ) : (
+                      new Date(tx.created_at).toLocaleTimeString(lang === "vi" ? "vi-VN" : "en-US", { hour: '2-digit', minute: '2-digit' })
+                    )}
                   </td>
                   
                   {/* Category Column */}
@@ -234,7 +314,9 @@ function HistoryPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+              </table>
+            </div>
+          ))}
         </div>
       )}
     </Layout>

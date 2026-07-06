@@ -8,3 +8,12 @@ pillow-heif
 pytesseract
 pytest
 httpx
+openai
+passlib[bcrypt]
+python-jose[cryptography]
+psycopg2-binary
+passlib[bcrypt]
+python-jose[cryptography]
+psycopg2-binary
+python-multipart
+email-validator

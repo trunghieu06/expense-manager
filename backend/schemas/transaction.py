@@ -9,13 +9,14 @@ class TransactionBase(BaseModel):
     note: Optional[str] = None
 
 class TransactionCreate(TransactionBase):
-    pass
+    created_at: Optional[datetime] = None
 
 class TransactionUpdate(BaseModel):
     amount: Optional[float] = None
     currency: Optional[str] = None
     category: Optional[str] = None
     note: Optional[str] = None
+    created_at: Optional[datetime] = None
 
 class TransactionResponse(TransactionBase):
     id: int
@@ -37,3 +38,6 @@ class MonthlySummary(BaseModel):
 
 class BulkDeleteRequest(BaseModel):
     ids: list[int]
+
+class SmartEntryRequest(BaseModel):
+    text: str
