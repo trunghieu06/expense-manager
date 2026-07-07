@@ -1,8 +1,9 @@
 import { Link, useRouterState, Navigate } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { useI18n, type Lang } from "@/lib/i18n";
-import { LayoutDashboard, PlusCircle, ScanLine, History, LogOut } from "lucide-react";
+import { LayoutDashboard, PlusCircle, ScanLine, History, LogOut, Moon, Sun } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useTheme } from "@/contexts/ThemeContext";
 
 export function Layout({ children }: { children: ReactNode }) {
   const { t, lang, setLang } = useI18n();
@@ -35,6 +36,7 @@ export function Layout({ children }: { children: ReactNode }) {
             </div>
           </Link>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <LangSwitch lang={lang} setLang={setLang} />
             <button 
               onClick={logout}
@@ -89,5 +91,23 @@ function LangSwitch({ lang, setLang }: { lang: Lang; setLang: (l: Lang) => void 
         </button>
       ))}
     </div>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+
+  return (
+    <button
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+      className="p-2 rounded-full border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+      title="Toggle theme"
+    >
+      {theme === "dark" ? (
+        <Sun className="h-4 w-4" />
+      ) : (
+        <Moon className="h-4 w-4" />
+      )}
+    </button>
   );
 }

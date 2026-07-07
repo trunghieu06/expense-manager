@@ -119,7 +119,7 @@ function AddPage() {
               type="button"
               onClick={() => mSmart.mutate()}
               disabled={!smartText.trim() || mSmart.isPending}
-              className="inline-flex items-center gap-2 rounded-full bg-secondary px-5 py-2.5 text-sm font-medium text-secondary-foreground hover:bg-secondary/80 disabled:opacity-50 transition-colors"
+              className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-95 disabled:opacity-50 transition-colors"
             >
               {mSmart.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
               {mSmart.isPending ? t("analyzing") : t("smart_entry_button")}
