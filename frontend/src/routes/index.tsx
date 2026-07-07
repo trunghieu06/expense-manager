@@ -29,6 +29,13 @@ function formatCurrency(n: number, lang: "en" | "vi", currency: string = "VND") 
   }).format(n);
 }
 
+function formatCompactNumber(n: number, lang: "en" | "vi") {
+  return new Intl.NumberFormat(lang === "vi" ? "vi-VN" : "en-US", {
+    notation: "compact",
+    compactDisplay: "short",
+  }).format(n);
+}
+
 function DashboardPage() {
   const { t, lang } = useI18n();
   const [selectedCurrency, setSelectedCurrency] = useState("VND");
@@ -192,7 +199,7 @@ function DashboardPage() {
                 <BarChart data={filteredData} margin={{ left: -10, right: 8, top: 8, bottom: 8 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="category" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} width={50} tickFormatter={(v) => formatCompactNumber(v, lang)} />
                   <Tooltip
                     cursor={{ fill: "var(--muted)" }}
                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }}
@@ -211,7 +218,7 @@ function DashboardPage() {
                 <BarChart data={filteredMonthly} margin={{ left: -10, right: 8, top: 8, bottom: 8 }}>
                   <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="month" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} width={50} tickFormatter={(v) => formatCompactNumber(v, lang)} />
                   <Tooltip
                     cursor={{ fill: "var(--muted)" }}
                     contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 12 }}
@@ -277,7 +284,8 @@ function DashboardPage() {
                               tick={{ fill: "var(--muted-foreground)", fontSize: 10 }} 
                               axisLine={false} 
                               tickLine={false} 
-                              tickFormatter={(v) => v >= 1000 ? `${v/1000}k` : v}
+                              width={40}
+                              tickFormatter={(v) => formatCompactNumber(v, lang)}
                             />
                             <Tooltip
                               cursor={{ fill: "var(--muted)" }}
