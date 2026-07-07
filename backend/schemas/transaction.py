@@ -41,3 +41,4 @@ class BulkDeleteRequest(BaseModel):
 
 class SmartEntryRequest(BaseModel):
     text: str
+    local_time: Optional[str] = None

@@ -17,12 +17,19 @@ class ExpenseInfo(BaseModel):
 
 class AIService:
     @staticmethod
-    def parse_smart_entry(text: str) -> dict:
+    def parse_smart_entry(text: str, local_time_str: str = None) -> dict:
+        now = datetime.now()
+        if local_time_str:
+            try:
+                # Remove Z to parse ISO correctly in older python
+                now = datetime.fromisoformat(local_time_str.replace('Z', '+00:00')[:19])
+            except ValueError:
+                pass
+
         api_key = os.environ.get("GROQ_API_KEY")
         if api_key and api_key != "YOUR_OPENAI_API_KEY_HERE" and OpenAI:
             try:
                 client = OpenAI(api_key=api_key, base_url="https://api.groq.com/openai/v1")
-                now = datetime.now()
                 
                 categories_list = [
                     "Ăn uống (Cơ bản)", "Nhà ở", "Di chuyển", "Học tập & Công việc", "Sức khỏe",
@@ -33,7 +40,8 @@ class AIService:
                 prompt = f"""
 Trích xuất thông tin chi tiêu từ câu: '{text}'.
 - Trả về ĐÚNG MỘT JSON OBJECT với các trường: amount (số), currency (VND), category (chuỗi), note (chuỗi), created_at (chuỗi định dạng YYYY-MM-DDTHH:mm:ss).
-- Thời gian hiện tại là: {now.isoformat()}. Suy luận ngày giờ 'created_at' dựa trên thời gian hiện tại (VD: 'hôm qua' trừ đi 1 ngày, 'sáng nay' là 08:00 hôm nay...).
+- Thời gian hiện tại của người dùng là: {now.isoformat()}. 
+- QUAN TRỌNG: NẾU người dùng cung cấp CỤ THỂ ngày giờ (Ví dụ: "5h ngày 7/7") thì phải lấy ĐÚNG ngày giờ đó (tức là 05:00:00 ngày 7 tháng 7 năm nay). CHỈ DÙNG thời gian hiện tại để suy luận nếu người dùng nói các từ tương đối như 'hôm qua', 'sáng nay', 'vừa nãy'.
 - Danh mục 'category' PHẢI CHÍNH XÁC là một trong các giá trị sau: {', '.join(categories_list)}.
 - Lưu ý quy tắc tính tiền: k/cành x1000, xị x100000, củ/tr x1000000. Nếu không có đơn vị, tự lấy số lớn nhất làm tiền.
 """
@@ -125,7 +133,7 @@ Trích xuất thông tin chi tiêu từ câu: '{text}'.
                 break
                 
         # 3. Trích xuất ngày giờ
-        now = datetime.now()
+        # 3. Trích xuất ngày giờ
         target_date = now.date()
         target_time = now.time()
         

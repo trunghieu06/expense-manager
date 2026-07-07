@@ -93,12 +93,14 @@ export const api = {
       body: JSON.stringify(data),
     }).then(handle<TransactionResponse>),
 
-  smartEntry: (text: string) =>
-    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/smart-entry`, {
+  smartEntry: (text: string) => {
+    const local_time = new Date().toISOString();
+    return fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/smart-entry`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    }).then(handle<Partial<TransactionCreate>>),
+      body: JSON.stringify({ text, local_time }),
+    }).then(handle<Partial<TransactionCreate>>);
+  },
 
   scanInvoice: (file: File) => {
     const fd = new FormData();

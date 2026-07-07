@@ -45,7 +45,7 @@ def add_manual_transaction(transaction: TransactionCreate, db: Session = Depends
 @router.post("/smart-entry", response_model=dict)
 def parse_smart_entry(req: SmartEntryRequest, current_user: User = Depends(get_current_user)):
     try:
-        extracted = AIService.parse_smart_entry(req.text)
+        extracted = AIService.parse_smart_entry(req.text, req.local_time)
         return extracted
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi khi xử lý Smart Entry: {str(e)}")
