@@ -23,7 +23,7 @@ export function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border/60 bg-cream/80 backdrop-blur sticky top-0 z-30">
+      <header className="border-b border-border/60 bg-cream/80 backdrop-blur sticky top-0 z-30 pt-[env(safe-area-inset-top)]">
         <div className="mx-auto max-w-6xl px-5 py-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4">
           <Link to="/" className="flex min-w-0 items-center gap-3">
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground font-display text-xl">
@@ -67,7 +67,7 @@ export function Layout({ children }: { children: ReactNode }) {
         </nav>
       </header>
       <main className="mx-auto max-w-6xl px-5 py-8 sm:py-12">{children}</main>
-      <footer className="mx-auto max-w-6xl px-5 py-10 text-xs text-muted-foreground">
+      <footer className="mx-auto max-w-6xl px-5 py-10 pb-[calc(env(safe-area-inset-bottom)+2.5rem)] text-xs text-muted-foreground">
         Â© {new Date().getFullYear()} {t("appName")}
       </footer>
     </div>
