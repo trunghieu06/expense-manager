@@ -42,3 +42,7 @@ class BulkDeleteRequest(BaseModel):
 class SmartEntryRequest(BaseModel):
     text: str
     local_time: Optional[str] = None
+
+class AnalyzeInsightsRequest(BaseModel):
+    context: str
+    data: list[dict]

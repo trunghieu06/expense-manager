@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import useEmblaCarousel from "embla-carousel-react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Loader2, X } from "lucide-react";
 import {
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -39,6 +39,22 @@ function formatCompactNumber(n: number, lang: "en" | "vi") {
 function DashboardPage() {
   const { t, lang } = useI18n();
   const [selectedCurrency, setSelectedCurrency] = useState("VND");
+
+  const [insightModal, setInsightModal] = useState<{
+    open: boolean;
+    title: string;
+    contextText: string;
+    data: any[];
+  }>({ open: false, title: "", contextText: "", data: [] });
+
+  const mInsight = useMutation({
+    mutationFn: (req: { context: string; data: any[] }) => api.analyzeInsights(req.context, req.data),
+  });
+
+  const handleAnalyze = (title: string, contextText: string, data: any[]) => {
+    setInsightModal({ open: true, title, contextText, data });
+    mInsight.mutate({ context: contextText, data });
+  };
 
   const q = useQuery<CategorySummary[]>({
     queryKey: ["summary"],
@@ -116,6 +132,38 @@ function DashboardPage() {
 
   return (
     <Layout>
+      {insightModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-card p-6 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setInsightModal(prev => ({ ...prev, open: false }))}
+              className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <div className="flex items-center gap-2 text-primary font-bold mb-4 font-display text-xl">
+              <Sparkles className="h-5 w-5 text-coral" />
+              AI Phân Tích: {insightModal.title}
+            </div>
+            
+            <div className="min-h-[100px] text-sm leading-relaxed p-4 rounded-2xl bg-secondary/50 border border-border">
+              {mInsight.isPending ? (
+                <div className="flex flex-col h-32 items-center justify-center text-muted-foreground gap-3">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <span className="animate-pulse">AI đang "soi mói" dữ liệu của bạn...</span>
+                </div>
+              ) : mInsight.isError ? (
+                <div className="text-destructive font-medium">Lỗi: {mInsight.error.message}</div>
+              ) : (
+                <div className="whitespace-pre-wrap text-foreground font-medium">
+                  {mInsight.data?.insight}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-coral font-medium">
@@ -147,8 +195,17 @@ function DashboardPage() {
       ) : (
         <div className="grid gap-6 lg:grid-cols-5">
           <div className="lg:col-span-2 rounded-3xl border border-border bg-card p-6 flex flex-col min-w-0 overflow-hidden">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground">
-              {t("total")}
+            <div className="flex items-center justify-between">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t("total")}
+              </div>
+              <button 
+                onClick={() => handleAnalyze("Tổng quan", "Phân tích tình hình tài chính dựa trên tổng quan", filteredData)}
+                className="p-1.5 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                title="Phân tích tổng quan"
+              >
+                <Sparkles className="h-4 w-4" />
+              </button>
             </div>
             <div className="mt-2 font-display text-4xl sm:text-5xl text-primary">
               {formatCurrency(total, lang, selectedCurrency)}
@@ -191,8 +248,16 @@ function DashboardPage() {
           </div>
 
           <div className="lg:col-span-3 rounded-3xl border border-border bg-card p-6 min-w-0 overflow-hidden">
-            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
-              {t("by_category")}
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t("by_category")}
+              </div>
+              <button 
+                onClick={() => handleAnalyze("Cơ cấu danh mục", "Phân tích cơ cấu chi tiêu xem tôi đang chi nhiều cho cái gì", filteredData)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <Sparkles className="h-3 w-3" /> Phân tích
+              </button>
             </div>
             <div className="h-64 mb-10">
               <ResponsiveContainer width="100%" height="100%">
@@ -210,8 +275,16 @@ function DashboardPage() {
               </ResponsiveContainer>
             </div>
 
-            <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4 mt-8 pt-8 border-t border-border">
-              {t("monthly_trend")}
+            <div className="flex items-center justify-between mb-4 mt-8 pt-8 border-t border-border">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">
+                {t("monthly_trend")}
+              </div>
+              <button 
+                onClick={() => handleAnalyze("Xu hướng tháng", "Phân tích xu hướng tăng giảm chi tiêu qua các tháng", filteredMonthly)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+              >
+                <Sparkles className="h-3 w-3" /> Phân tích
+              </button>
             </div>
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -265,9 +338,18 @@ function DashboardPage() {
                         <span className="font-semibold text-primary">
                           {new Date(dayData.dateStr).toLocaleDateString(lang === "vi" ? "vi-VN" : "en-US", { weekday: 'short', month: 'short', day: 'numeric' })}
                         </span>
-                        <span className="text-sm font-medium text-muted-foreground">
-                          {formatCurrency(dayData.total, lang, selectedCurrency)}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-muted-foreground">
+                            {formatCurrency(dayData.total, lang, selectedCurrency)}
+                          </span>
+                          <button 
+                            onClick={() => handleAnalyze(`Ngày ${dayData.dateStr}`, `Phân tích chi tiêu của tôi trong ngày ${dayData.dateStr}`, dayData.hourly)}
+                            className="p-1 rounded-full text-coral bg-coral/10 hover:bg-coral/20 transition-colors"
+                            title="Phân tích ngày"
+                          >
+                            <Sparkles className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                       <div className="h-48">
                         <ResponsiveContainer width="100%" height="100%">

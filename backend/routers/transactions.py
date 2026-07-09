@@ -6,7 +6,7 @@ from typing import List
 from database import get_db, engine
 from models.transaction import Transaction
 from models.user import User
-from schemas.transaction import TransactionCreate, TransactionResponse, CategorySummary, TransactionUpdate, MonthlySummary, BulkDeleteRequest, SmartEntryRequest
+from schemas.transaction import TransactionCreate, TransactionResponse, CategorySummary, TransactionUpdate, MonthlySummary, BulkDeleteRequest, SmartEntryRequest, AnalyzeInsightsRequest
 from services.ocr_service import OCRService
 from services.ai_service import AIService
 from dependencies import get_current_user
@@ -136,6 +136,14 @@ def get_daily_summary(date: str, db: Session = Depends(get_db), current_user: Us
         return {"summary": summary}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Lỗi khi tạo tóm tắt ngày: {str(e)}")
+
+@router.post("/analyze-insights")
+def analyze_insights(req: AnalyzeInsightsRequest, current_user: User = Depends(get_current_user)):
+    try:
+        insight = AIService.analyze_insights(req.context, req.data)
+        return {"insight": insight}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Lỗi khi phân tích AI: {str(e)}")
 
 @router.delete("/{transaction_id}")
 def delete_transaction(transaction_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

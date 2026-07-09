@@ -141,4 +141,11 @@ export const api = {
 
   dailySummary: (date: string) =>
     fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/daily-summary?date=${date}`).then(handle<{ summary: string }>),
+
+  analyzeInsights: (context: string, data: any[]) =>
+    fetchWithAuth(`${API_BASE_URL}/api/v1/transactions/analyze-insights`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ context, data }),
+    }).then(handle<{ insight: string }>),
 };
